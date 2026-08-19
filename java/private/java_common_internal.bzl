@@ -369,7 +369,7 @@ def compile(
         enable_direct_classpath,
         annotation_processor_additional_inputs,
         annotation_processor_additional_outputs,
-        extra_args = extra_args_list,
+        **({"extra_args": extra_args_list} if extra_args_list else {})
     )
 
     create_output_source_jar = len(source_files) > 0 or source_jars != [output_source_jar]
