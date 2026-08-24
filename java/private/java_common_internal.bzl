@@ -335,9 +335,9 @@ def compile(
                 if JavaInfo in dep:
                     if hasattr(dep[JavaInfo], "java_outputs"):
                         for output_info in dep[JavaInfo].java_outputs:
-                            compile_jar = output_info.compile_jar if output_info.compile_jar else output_info.class_jar
-                            if compile_jar:
-                                unused_deps_args.add("--declared_dep", compile_jar, format = "%s::" + str(dep.label))
+                            dep_compile_jar = output_info.compile_jar if output_info.compile_jar else output_info.class_jar
+                            if dep_compile_jar:
+                                unused_deps_args.add("--declared_dep", dep_compile_jar, format = "%s::" + str(dep.label))
             extra_args_list.append(unused_deps_args)
 
     internal_common.create_compilation_action(
