@@ -8,6 +8,7 @@ load("@rules_testing//lib:util.bzl", "util")
 load("//java:java_import.bzl", "java_import")
 load("//java:java_library.bzl", "java_library")
 load("//java:java_plugin.bzl", "java_plugin")
+load("//java/common/rules:java_package_configuration.bzl", "java_package_configuration")
 load("//java/toolchains:java_runtime.bzl", "java_runtime")
 load("//java/toolchains:java_toolchain.bzl", "java_toolchain")
 load("//test/java/testutil:helper.bzl", "always_passes")
@@ -1096,6 +1097,55 @@ def _test_exported_plugins_are_propagated_through_exports_impl(env, targets):
         "{package}/lib{test_name}/leaf_lib.jar",
     ).processors().contains_exactly(["com.example.process.stuff"])
 
+def _test_java_library_unused_deps_compile_jar(name):
+    native.package_group(
+        name = name + "_pkg_group",
+        packages = ["//..."],
+    )
+
+    util.helper_target(
+        java_package_configuration,
+        name = name + "/unused_deps_config",
+        packages = [name + "_pkg_group"],
+        unused_deps = "error",
+    )
+
+    util.helper_target(
+        mock_java_toolchain,
+        name = name + "/toolchain",
+        package_configuration = [name + "/unused_deps_config"],
+    )
+
+    util.helper_target(
+        java_library,
+        name = name + "/dep_lib",
+        srcs = ["Dep.java"],
+    )
+
+    util.helper_target(
+        java_library,
+        name = name + "/main_lib",
+        srcs = ["Main.java"],
+        deps = [name + "/dep_lib"],
+    )
+
+    analysis_test(
+        name = name,
+        config_settings = {
+            "//command_line_option:extra_toolchains": [
+                native.package_relative_label(name + "/toolchain"),
+            ],
+        },
+        impl = _test_java_library_unused_deps_compile_jar_impl,
+        target = name + "/main_lib",
+    )
+
+def _test_java_library_unused_deps_compile_jar_impl(env, target):
+    # Verify that the target's output compile_jar belongs to main_lib, not dep_lib
+    java_info_subject.from_target(env, target).outputs().jars().singleton().compile_jar().short_path_equals(
+        "{package}/lib{test_name}/main_lib-hjar.jar",
+    )
+
 def java_library_launcher_tests(name):
     test_suite(
         name = name,
@@ -1130,5 +1180,6 @@ def java_library_launcher_tests(name):
             _test_exports_collect_source_jars,
             _test_exported_plugins_are_inherited,
             _test_exported_plugins_are_propagated_through_exports,
+            _test_java_library_unused_deps_compile_jar,
         ],
     )
